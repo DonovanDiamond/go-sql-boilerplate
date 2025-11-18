@@ -256,3 +256,61 @@ func TestJsonObject(t *testing.T) {
 	}
 	AssertStructEqual(t, out.JsonObject, out2.JsonObject, "Expected selected JsonObject to match updated JsonObject")
 }
+
+func TestJsonArray(t *testing.T) {
+	type Table struct {
+		ID        int       `db:"id" dbtype:"BIGSERIAL NOT NULL PRIMARY KEY"`
+		JsonArray JsonArray `db:"json_object" dbtype:"JSONB NOT NULL"`
+	}
+	queries := GenerateQueries(GenerateQueriesOptions{
+		TableName:          "table_json_array",
+		Model:              Table{},
+		AutoGeneratingCols: []string{"id"},
+		PrimaryKeys:        []string{"id"},
+		Driver:             "sqlite",
+	})
+
+	t.Cleanup(func() {
+		_ = Exec(db, queries.DropTable)
+	})
+
+	err := Exec(db, queries.CreateTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := Table{
+		JsonArray: JsonArray{
+			"a", "b", 1, 2, 3,
+		},
+	}
+	err = NamedExecReturning(db, &row, queries.Insert, &row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.ID == 0 {
+		t.Fatal("Expected inserted row to have an id, but it's still 0.")
+	}
+	AssertStructEqual(t,
+		JsonArray{
+			"a", "b", 1, 2, 3,
+		},
+		row.JsonArray, "Expected inserted JsonArray to match what was inserted")
+	out, err := Get[Table](db, fmt.Sprintf("%s %s", queries.Select, "WHERE id = $1"), row.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	AssertStructEqual(t, row.JsonArray, out.JsonArray, "Expected selected JsonArray to match inserted JsonArray")
+
+	out.JsonArray = JsonArray{}
+	err = NamedExecReturning(db, &out, queries.Update, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	AssertStructEqual(t, JsonArray{}, out.JsonArray, "Expected updated JsonArray to match what was updated")
+
+	out2, err := Get[Table](db, fmt.Sprintf("%s %s", queries.Select, "WHERE id = $1"), row.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	AssertStructEqual(t, out.JsonArray, out2.JsonArray, "Expected selected JsonArray to match updated JsonArray")
+}

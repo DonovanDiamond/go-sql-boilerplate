@@ -110,3 +110,24 @@ func (obj *JsonObject) Scan(src any) error {
 
 	return json.Unmarshal(srcBytes, &obj)
 }
+
+type JsonArray []any
+
+func (arr JsonArray) Value() (driver.Value, error) {
+	return json.Marshal(arr)
+}
+
+func (arr *JsonArray) Scan(src any) error {
+	var srcBytes []byte
+
+	switch v := src.(type) {
+	case string:
+		srcBytes = []byte(v)
+	case []byte:
+		srcBytes = v
+	default:
+		return fmt.Errorf("unsupported type: %T for json", src)
+	}
+
+	return json.Unmarshal(srcBytes, &arr)
+}
